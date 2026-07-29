@@ -1,5 +1,5 @@
 /*
- * run_gcc_program.c  -  Vitis (ARM) loader for a GCC-compiled RV32IM program.
+ * run_gcc_program.c  -  Vitis (ARM) loader for a GCC-compiled RV32I program.
  *
  * Flow:
  *   1. write your C in  GCC/main.c
@@ -24,22 +24,17 @@
 #define CTRL_BASE     0x40000000U  /* control register            */
 #define CTRL_RESET    0x00000001U  /* bit0 = hold core in reset   */
 
-#define RESULT_OFF    0x0CU        /* RV32M pass mask */
-#define STATUS_OFF    0x10U        /* done word */
-#define FAIL_OFF      0x14U        /* failing RV32M checks */
-#define EXPECTED_OFF  0x18U        /* expected pass mask */
-#define DIAG_OFF      0x20U        /* pairs of got/expected words */
+#define RESULT_OFF    0x0CU        /* matches RESULT_ADDR in GCC/main.c */
+#define STATUS_OFF    0x10U        /* matches STATUS_ADDR in GCC/main.c */
 #define STATUS_DONE   0xCAFECAFEU
-#define EXPECTED_MASK 0x00000FFFU
-#define CHECK_COUNT   12U
 #define POLL_TIMEOUT  2000000U
 
 int main(void)
 {
-    uint32_t i, poll, status, result, expected, fail_count;
+    uint32_t i, poll, status, result;
 
-    xil_printf("\r\n=== Run GCC-compiled RV32IM program ===\r\n");
-    xil_printf("Image : %s\r\n", RV32IM_IMAGE_TAG);
+    xil_printf("\r\n=== Run GCC-compiled program on RV32I core ===\r\n");
+    xil_printf("Image : %s\r\n", RV32I_IMAGE_TAG);
     xil_printf("Words : %u\r\n", RISCV_CODE_WORD_COUNT);
 
     /* 1. hold core in reset */
@@ -79,25 +74,8 @@ int main(void)
 
     /* 6. read the result the core wrote into data BRAM */
     result = Xil_In32(DMEM_BASE + RESULT_OFF);
-    expected = Xil_In32(DMEM_BASE + EXPECTED_OFF);
-    fail_count = Xil_In32(DMEM_BASE + FAIL_OFF);
-
     xil_printf("DONE after %u polls.\r\n", poll);
-    xil_printf("RV32M pass mask = 0x%08x expected=0x%08x fail_count=%u\r\n",
-               result, expected, fail_count);
-
-    if ((result != EXPECTED_MASK) || (expected != EXPECTED_MASK) || (fail_count != 0U)) {
-        xil_printf("RV32M GCC test FAIL\r\n");
-        for (i = 0U; i < CHECK_COUNT; ++i) {
-            uint32_t got = Xil_In32(DMEM_BASE + DIAG_OFF + (i * 8U));
-            uint32_t exp = Xil_In32(DMEM_BASE + DIAG_OFF + (i * 8U) + 4U);
-            xil_printf("[%02u] got=0x%08x exp=0x%08x %s\r\n",
-                       i, got, exp, (got == exp) ? "PASS" : "FAIL");
-        }
-        return -1;
-    }
-
-    xil_printf("RV32M GCC test PASS\r\n");
+    xil_printf("Result from data BRAM = %u (0x%08x)\r\n", result, result);
 
     return 0;
 }
