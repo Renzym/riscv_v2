@@ -779,6 +779,22 @@ proc cr_bd_design_1 { parentCell } {
   [get_bd_pins axi_bram_ctrl_1/s_axi_aresetn] \
   [get_bd_pins riscv_zynq_bridge_0/aresetn]
 
+
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_0
+endgroup
+startgroup
+set_property CONFIG.NUM_EXT_INTERRUPTS {3} [get_bd_cells riscv_zynq_bridge_0]
+endgroup
+set_property location {2 490 187} [get_bd_cells xlconstant_0]
+set_property -dict [list \
+  CONFIG.CONST_VAL {0} \
+  CONFIG.CONST_WIDTH {3} \
+] [get_bd_cells xlconstant_0]
+connect_bd_net [get_bd_pins xlconstant_0/dout] [get_bd_pins riscv_zynq_bridge_0/global_interrupts]
+
+
+
   # Create address segments
   assign_bd_address -offset 0x42000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x44000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
