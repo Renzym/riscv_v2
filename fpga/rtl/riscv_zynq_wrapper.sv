@@ -1,0 +1,195 @@
+`ifndef RISCV_ZYNQ_WRAPPER_SV
+`define RISCV_ZYNQ_WRAPPER_SV
+
+`timescale 1ns/1ps
+
+module riscv_zynq_wrapper #(
+    parameter integer ADDR_WIDTH = 10,
+    parameter logic [31:0] RESET_PC = 32'h0000_0000,
+    parameter integer NUM_EXT_INTERRUPTS = 32
+) (
+    input  logic        clk,
+    input  logic        aresetn,
+    input  logic [NUM_EXT_INTERRUPTS-1:0] global_interrupts,
+
+    // AXI-Lite Slave Interface (Control/Status)
+    input  logic [3:0]                           s_axi_ctrl_awaddr,
+    input  logic [2:0]                           s_axi_ctrl_awprot,
+    input  logic                                 s_axi_ctrl_awvalid,
+    output logic                                 s_axi_ctrl_awready,
+    input  logic [31:0]                          s_axi_ctrl_wdata,
+    input  logic [3:0]                           s_axi_ctrl_wstrb,
+    input  logic                                 s_axi_ctrl_wvalid,
+    output logic                                 s_axi_ctrl_wready,
+    output logic [1:0]                           s_axi_ctrl_bresp,
+    output logic                                 s_axi_ctrl_bvalid,
+    input  logic                                 s_axi_ctrl_bready,
+    input  logic [3:0]                           s_axi_ctrl_araddr,
+    input  logic [2:0]                           s_axi_ctrl_arprot,
+    input  logic                                 s_axi_ctrl_arvalid,
+    output logic                                 s_axi_ctrl_arready,
+    output logic [31:0]                          s_axi_ctrl_rdata,
+    output logic [1:0]                           s_axi_ctrl_rresp,
+    output logic                                 s_axi_ctrl_rvalid,
+    input  logic                                 s_axi_ctrl_rready,
+
+    // BRAM Interface - Instruction Memory
+    output logic        bram_imem_clk,
+    output logic        bram_imem_rst,
+    output logic        bram_imem_en,
+    output logic [3:0]  bram_imem_we,
+    output logic [31:0] bram_imem_addr,
+    output logic [31:0] bram_imem_din,
+    input  logic [31:0] bram_imem_dout,
+
+    // BRAM Interface - Data Memory
+    output logic        bram_dmem_clk,
+    output logic        bram_dmem_rst,
+    output logic        bram_dmem_en,
+    output logic [3:0]  bram_dmem_we,
+    output logic [31:0] bram_dmem_addr,
+    output logic [31:0] bram_dmem_din,
+    input  logic [31:0] bram_dmem_dout
+);
+
+    logic        cpu_reset_ext;
+    logic        cpu_reset;
+    logic        cpu_running;
+
+    logic        imem_req;
+    logic [31:0] imem_addr;
+    logic        imem_ready;
+    logic [31:0] imem_instr;
+
+    logic [31:0] dmem_addr;
+    logic [31:0] dmem_write_data;
+    logic [3:0]  dmem_wstrb;
+    logic        dmem_read_en;
+    logic        dmem_write_en;
+    logic        dmem_ready;
+    logic [31:0] dmem_read_data;
+    logic [31:0] bram_imem_byte_addr;
+    logic [31:0] bram_dmem_byte_addr;
+
+    // BRAM has a registered (1-cycle) read output. The core expects imem_instr /
+    // dmem_read_data to be valid in the same cycle that *_ready is asserted, for the
+    // address it is currently driving. So we assert ready only when the address has
+    // been held stable for one full cycle (i.e. the registered BRAM output now
+    // corresponds to the address presently requested). This gives a correct 2-cycle
+    // access and self-corrects across PC changes and pipeline stalls.
+    logic [31:0] imem_addr_q;
+    logic        imem_req_q;
+
+    logic [31:0] dmem_addr_q;
+    logic        dmem_acc;
+    logic        dmem_acc_q;
+
+    assign cpu_reset   = !aresetn || cpu_reset_ext;
+    assign cpu_running = !cpu_reset;
+
+    assign dmem_acc = dmem_read_en | dmem_write_en;
+
+    always_ff @(posedge clk) begin
+        if (cpu_reset) begin
+            imem_addr_q <= 32'd0;
+            imem_req_q  <= 1'b0;
+            dmem_addr_q <= 32'd0;
+            dmem_acc_q  <= 1'b0;
+        end else begin
+            imem_addr_q <= imem_addr;
+            imem_req_q  <= imem_req;
+            dmem_addr_q <= dmem_addr;
+            dmem_acc_q  <= dmem_acc;
+        end
+    end
+
+    assign imem_ready     = imem_req_q && (imem_addr_q == imem_addr);
+    assign imem_instr     = bram_imem_dout;
+    assign dmem_ready     = dmem_acc_q && (dmem_addr_q == dmem_addr);
+    assign dmem_read_data = bram_dmem_dout;
+    assign bram_imem_byte_addr = {
+        {(32-(ADDR_WIDTH+2)){1'b0}},
+        imem_addr[ADDR_WIDTH+1:2],
+        2'b00
+    };
+    assign bram_dmem_byte_addr = {
+        {(32-(ADDR_WIDTH+2)){1'b0}},
+        dmem_addr[ADDR_WIDTH+1:2],
+        2'b00
+    };
+
+    // AXI-Lite control/status. Memory remains direct BRAM; this only controls reset.
+    axi_lite_control #(
+        .C_S_AXI_DATA_WIDTH(32),
+        .C_S_AXI_ADDR_WIDTH(4)
+    ) ctrl_inst (
+        .S_AXI_ACLK    (clk),
+        .S_AXI_ARESETN (aresetn),
+        .S_AXI_AWADDR  (s_axi_ctrl_awaddr),
+        .S_AXI_AWPROT  (s_axi_ctrl_awprot),
+        .S_AXI_AWVALID (s_axi_ctrl_awvalid),
+        .S_AXI_AWREADY (s_axi_ctrl_awready),
+        .S_AXI_WDATA   (s_axi_ctrl_wdata),
+        .S_AXI_WSTRB   (s_axi_ctrl_wstrb),
+        .S_AXI_WVALID  (s_axi_ctrl_wvalid),
+        .S_AXI_WREADY  (s_axi_ctrl_wready),
+        .S_AXI_BRESP   (s_axi_ctrl_bresp),
+        .S_AXI_BVALID  (s_axi_ctrl_bvalid),
+        .S_AXI_BREADY  (s_axi_ctrl_bready),
+        .S_AXI_ARADDR  (s_axi_ctrl_araddr),
+        .S_AXI_ARPROT  (s_axi_ctrl_arprot),
+        .S_AXI_ARVALID (s_axi_ctrl_arvalid),
+        .S_AXI_ARREADY (s_axi_ctrl_arready),
+        .S_AXI_RDATA   (s_axi_ctrl_rdata),
+        .S_AXI_RRESP   (s_axi_ctrl_rresp),
+        .S_AXI_RVALID  (s_axi_ctrl_rvalid),
+        .S_AXI_RREADY  (s_axi_ctrl_rready),
+        .cpu_reset_ext (cpu_reset_ext),
+        .cpu_running   (cpu_running)
+    );
+
+    // RISC-V core
+    riscv_core #(
+        .RESET_PC(RESET_PC),
+        .TRAP_ACCESS_FAULTS(1'b0),
+        .DMEM_BASE(32'h0000_0000),
+        .DMEM_LIMIT(32'h0000_1000),
+        .NUM_EXT_INTERRUPTS(NUM_EXT_INTERRUPTS)
+    ) core_inst (
+        .clk             (clk),
+        .reset           (cpu_reset),
+        .global_interrupts(global_interrupts),
+        .imem_req        (imem_req),
+        .imem_addr       (imem_addr),
+        .imem_ready      (imem_ready),
+        .imem_instr      (imem_instr),
+        .imem_resp_pc    (imem_addr_q),
+        .imem_resp_accept(),
+        .dmem_addr       (dmem_addr),
+        .dmem_write_data (dmem_write_data),
+        .dmem_wstrb      (dmem_wstrb),
+        .dmem_read_en    (dmem_read_en),
+        .dmem_write_en   (dmem_write_en),
+        .dmem_ready      (dmem_ready),
+        .dmem_read_data  (dmem_read_data)
+    );
+
+    // Instruction BRAM: read-only, driven directly from core
+    assign bram_imem_clk  = clk;
+    assign bram_imem_rst  = cpu_reset;
+    assign bram_imem_en   = imem_req;
+    assign bram_imem_we   = 4'b0000;
+    assign bram_imem_addr = bram_imem_byte_addr;
+    assign bram_imem_din  = 32'b0;
+
+    // Data BRAM: read/write, driven directly from core
+    assign bram_dmem_clk  = clk;
+    assign bram_dmem_rst  = cpu_reset;
+    assign bram_dmem_en   = dmem_read_en | dmem_write_en;
+    assign bram_dmem_we   = dmem_write_en ? dmem_wstrb : 4'b0000;
+    assign bram_dmem_addr = bram_dmem_byte_addr;
+    assign bram_dmem_din  = dmem_write_data;
+
+endmodule
+
+`endif
