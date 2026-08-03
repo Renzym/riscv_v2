@@ -28,7 +28,7 @@ module riscv_regfile (
     logic [31:0] regs [0:31];
     integer i;
 
-    always_ff @(posedge clk or posedge reset) begin
+    always_ff @(posedge clk) begin
         if (reset) begin
             for (i = 0; i < 32; i = i + 1)
                 regs[i] <= 32'd0;

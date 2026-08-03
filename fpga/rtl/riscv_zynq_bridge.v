@@ -4,6 +4,8 @@
 module riscv_zynq_bridge #(
     parameter ADDR_WIDTH         = 10,
     parameter RESET_PC = 32'h0000_0000,
+    parameter AXI_PERIPH_BASE = 32'h1000_0000,
+    parameter AXI_PERIPH_MASK = 32'hF000_0000,
     parameter NUM_EXT_INTERRUPTS = 32
 ) (
     input  wire        clk,
@@ -47,12 +49,35 @@ module riscv_zynq_bridge #(
     output wire [3:0]  bram_dmem_we,
     output wire [31:0] bram_dmem_addr,
     output wire [31:0] bram_dmem_din,
-    input  wire [31:0] bram_dmem_dout
+    input  wire [31:0] bram_dmem_dout,
+
+    // AXI4-Lite Master - data-side peripherals
+    output wire [31:0] m_axi_periph_awaddr,
+    output wire [2:0]  m_axi_periph_awprot,
+    output wire        m_axi_periph_awvalid,
+    input  wire        m_axi_periph_awready,
+    output wire [31:0] m_axi_periph_wdata,
+    output wire [3:0]  m_axi_periph_wstrb,
+    output wire        m_axi_periph_wvalid,
+    input  wire        m_axi_periph_wready,
+    input  wire [1:0]  m_axi_periph_bresp,
+    input  wire        m_axi_periph_bvalid,
+    output wire        m_axi_periph_bready,
+    output wire [31:0] m_axi_periph_araddr,
+    output wire [2:0]  m_axi_periph_arprot,
+    output wire        m_axi_periph_arvalid,
+    input  wire        m_axi_periph_arready,
+    input  wire [31:0] m_axi_periph_rdata,
+    input  wire [1:0]  m_axi_periph_rresp,
+    input  wire        m_axi_periph_rvalid,
+    output wire        m_axi_periph_rready
 );
 
     riscv_zynq_wrapper #(
         .ADDR_WIDTH        (ADDR_WIDTH),
         .RESET_PC          (RESET_PC),
+        .AXI_PERIPH_BASE   (AXI_PERIPH_BASE),
+        .AXI_PERIPH_MASK   (AXI_PERIPH_MASK),
         .NUM_EXT_INTERRUPTS(NUM_EXT_INTERRUPTS)
     ) sv_inst (
         .clk               (clk),
@@ -90,7 +115,26 @@ module riscv_zynq_bridge #(
         .bram_dmem_we      (bram_dmem_we),
         .bram_dmem_addr    (bram_dmem_addr),
         .bram_dmem_din     (bram_dmem_din),
-        .bram_dmem_dout    (bram_dmem_dout)
+        .bram_dmem_dout    (bram_dmem_dout),
+        .m_axi_periph_awaddr (m_axi_periph_awaddr),
+        .m_axi_periph_awprot (m_axi_periph_awprot),
+        .m_axi_periph_awvalid(m_axi_periph_awvalid),
+        .m_axi_periph_awready(m_axi_periph_awready),
+        .m_axi_periph_wdata  (m_axi_periph_wdata),
+        .m_axi_periph_wstrb  (m_axi_periph_wstrb),
+        .m_axi_periph_wvalid (m_axi_periph_wvalid),
+        .m_axi_periph_wready (m_axi_periph_wready),
+        .m_axi_periph_bresp  (m_axi_periph_bresp),
+        .m_axi_periph_bvalid (m_axi_periph_bvalid),
+        .m_axi_periph_bready (m_axi_periph_bready),
+        .m_axi_periph_araddr (m_axi_periph_araddr),
+        .m_axi_periph_arprot (m_axi_periph_arprot),
+        .m_axi_periph_arvalid(m_axi_periph_arvalid),
+        .m_axi_periph_arready(m_axi_periph_arready),
+        .m_axi_periph_rdata  (m_axi_periph_rdata),
+        .m_axi_periph_rresp  (m_axi_periph_rresp),
+        .m_axi_periph_rvalid (m_axi_periph_rvalid),
+        .m_axi_periph_rready (m_axi_periph_rready)
     );
 
 endmodule

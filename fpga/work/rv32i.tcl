@@ -31,6 +31,7 @@
 # 3. The following remote source files that were added to the original project:-
 #
 #    "F:/AI_RV32I/RV32I/src/fpga/axi_lite_control.sv"
+#    "F:/AI_RV32I/RV32I/src/fpga/riscv_axi_lite_master.sv"
 #    "F:/AI_RV32I/RV32I/src/fpga/riscv_axi_ddr_backend.sv"
 #    "F:/AI_RV32I/RV32I/src/fpga/riscv_zynq_wrapper.sv"
 #    "F:/AI_RV32I/RV32I/src/fpga/riscv_zynq_bridge.v"
@@ -52,6 +53,7 @@ proc checkRequiredFiles { origin_dir} {
 
   set files [list \
    "../rtl/axi_lite_control.sv" \
+   "../rtl/riscv_axi_lite_master.sv" \
    "../rtl/riscv_zynq_wrapper.sv" \
    "../rtl/riscv_zynq_bridge.v" \
   ]
@@ -184,6 +186,7 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
 set obj [get_filesets sources_1]
 set files [list \
  ../rtl/axi_lite_control.sv \
+ ../rtl/riscv_axi_lite_master.sv \
  ../rtl/riscv_zynq_wrapper.sv \
  ../rtl/riscv_zynq_bridge.v \
 ]
@@ -210,8 +213,8 @@ set file_obj [get_files axi_lite_control.sv]
 set_property file_type SystemVerilog $file_obj
 
 
+set file_obj [get_files riscv_axi_lite_master.sv]
 set_property file_type SystemVerilog $file_obj
-
 
 set file_obj [get_files riscv_zynq_wrapper.sv]
 set_property file_type SystemVerilog $file_obj
@@ -235,7 +238,10 @@ if {[string equal [get_filesets -quiet constrs_1] ""]} {
 # Set 'constrs_1' fileset object
 set obj [get_filesets constrs_1]
 
-# Empty (no sources present)
+set files [list \
+ ./zybo_leds.xdc \
+]
+add_files -norecurse -fileset $obj $files
 
 # Set 'constrs_1' fileset properties
 set obj [get_filesets constrs_1]
@@ -277,6 +283,9 @@ set obj [get_filesets utils_1]
 # Adding sources referenced in BDs, if not already added
 if { [get_files [list axi_lite_control.sv]] == "" } {
   add_files -quiet -fileset sources_1 ../rtl/axi_lite_control.sv
+}
+if { [get_files [list riscv_axi_lite_master.sv]] == "" } {
+  add_files -quiet -fileset sources_1 ../rtl/riscv_axi_lite_master.sv
 }
 if { [get_files [list riscv_pkg.sv]] == "" } {
   add_files -quiet -fileset sources_1 ../rtl/riscv_pkg.sv
@@ -337,6 +346,7 @@ proc cr_bd_design_1 { parentCell } {
   xilinx.com:ip:proc_sys_reset:5.0\
   xilinx.com:ip:axi_bram_ctrl:4.1\
   xilinx.com:ip:blk_mem_gen:8.4\
+  xilinx.com:ip:axi_gpio:2.0\
   xilinx.com:ip:system_ila:1.1\
   "
 
@@ -711,6 +721,15 @@ proc cr_bd_design_1 { parentCell } {
   set axi_bram_ctrl_1_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 axi_bram_ctrl_1_bram ]
   set_property CONFIG.Memory_Type {True_Dual_Port_RAM} $axi_bram_ctrl_1_bram
 
+  # Create instance: axi_gpio_0
+  # CPU data accesses in the 0x1000_0000 region are routed to this AXI4-Lite
+  # peripheral through riscv_zynq_bridge_0/m_axi_periph.
+  set axi_gpio_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_0 ]
+  set_property -dict [list \
+    CONFIG.C_ALL_OUTPUTS {1} \
+    CONFIG.C_GPIO_WIDTH {4} \
+  ] $axi_gpio_0
+
 
   # Create instance: riscv_zynq_bridge_0, and set properties
   set block_name riscv_zynq_bridge
@@ -731,6 +750,7 @@ proc cr_bd_design_1 { parentCell } {
   connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins riscv_zynq_bridge_0/s_axi_ctrl]
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
+  connect_bd_intf_net -intf_net riscv_zynq_bridge_0_m_axi_periph [get_bd_intf_pins riscv_zynq_bridge_0/m_axi_periph] [get_bd_intf_pins axi_gpio_0/S_AXI]
   connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
   connect_bd_intf_net -intf_net processing_system7_0_M_AXI_GP0 [get_bd_intf_pins processing_system7_0/M_AXI_GP0] [get_bd_intf_pins axi_smc/S00_AXI]
@@ -746,6 +766,7 @@ proc cr_bd_design_1 { parentCell } {
   [get_bd_pins rst_ps7_0_100M/slowest_sync_clk] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
   [get_bd_pins axi_bram_ctrl_1/s_axi_aclk] \
+  [get_bd_pins axi_gpio_0/s_axi_aclk] \
   [get_bd_pins riscv_zynq_bridge_0/clk]
   connect_bd_net -net processing_system7_0_FCLK_RESET0_N  [get_bd_pins processing_system7_0/FCLK_RESET0_N] \
   [get_bd_pins rst_ps7_0_100M/ext_reset_in]
@@ -777,7 +798,10 @@ proc cr_bd_design_1 { parentCell } {
   [get_bd_pins axi_smc/aresetn] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_1/s_axi_aresetn] \
+  [get_bd_pins axi_gpio_0/s_axi_aresetn] \
   [get_bd_pins riscv_zynq_bridge_0/aresetn]
+
+  make_bd_pins_external -name led [get_bd_pins axi_gpio_0/gpio_io_o]
 
 
 startgroup
@@ -799,6 +823,7 @@ connect_bd_net [get_bd_pins xlconstant_0/dout] [get_bd_pins riscv_zynq_bridge_0/
   assign_bd_address -offset 0x42000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x44000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
   assign_bd_address -offset 0x40000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs riscv_zynq_bridge_0/s_axi_ctrl/reg0] -force
+  assign_bd_address -offset 0x10000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces riscv_zynq_bridge_0/m_axi_periph] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
 
   # Perform GUI Layout
   regenerate_bd_layout -layout_string {

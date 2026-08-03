@@ -52,6 +52,7 @@ iverilog -g2012 -o "${SCRIPT_DIR}/riscv_zynq_wrapper_sim" \
     "${RTL}/riscv_hazard.sv" \
     "${RTL}/riscv_core.sv" \
     "${RTL}/axi_lite_control.sv" \
+    "${RTL}/riscv_axi_lite_master.sv" \
     "${RTL}/riscv_zynq_wrapper.sv" \
     "${SCRIPT_DIR}/riscv_zynq_wrapper_tb.sv"
 
@@ -59,6 +60,27 @@ echo "Direct BRAM wrapper simulation running..."
 (
     cd "${SCRIPT_DIR}"
     vvp "${SCRIPT_DIR}/riscv_zynq_wrapper_sim"
+)
+
+echo "Compiling BRAM plus AXI-Lite peripheral wrapper checks (Icarus)..."
+iverilog -g2012 -o "${SCRIPT_DIR}/riscv_zynq_axi_periph_sim" \
+    "${RTL}/riscv_pkg.sv" \
+    "${RTL}/riscv_alu.sv" \
+    "${RTL}/riscv_regfile.sv" \
+    "${RTL}/riscv_decode.sv" \
+    "${RTL}/riscv_csr.sv" \
+    "${RTL}/riscv_lsu.sv" \
+    "${RTL}/riscv_hazard.sv" \
+    "${RTL}/riscv_core.sv" \
+    "${RTL}/axi_lite_control.sv" \
+    "${RTL}/riscv_axi_lite_master.sv" \
+    "${RTL}/riscv_zynq_wrapper.sv" \
+    "${SCRIPT_DIR}/riscv_zynq_axi_periph_tb.sv"
+
+echo "BRAM plus AXI-Lite peripheral wrapper simulation running..."
+(
+    cd "${SCRIPT_DIR}"
+    vvp "${SCRIPT_DIR}/riscv_zynq_axi_periph_sim"
 )
 
 echo "Compiling SystemVerilog (Icarus)..."

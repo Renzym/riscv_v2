@@ -1,5 +1,5 @@
 /*
- * run_gcc_program.c  -  Vitis (ARM) loader for a GCC-compiled RV32I program.
+ * run_gcc_program.c  -  Vitis (ARM) loader for a GCC-compiled RV32IM program.
  *
  * Flow:
  *   1. write your C in  GCC/main.c
@@ -24,17 +24,21 @@
 #define CTRL_BASE     0x40000000U  /* control register            */
 #define CTRL_RESET    0x00000001U  /* bit0 = hold core in reset   */
 
-#define RESULT_OFF    0x0CU        /* matches RESULT_ADDR in GCC/main.c */
-#define STATUS_OFF    0x10U        /* matches STATUS_ADDR in GCC/main.c */
+#define RESULT_OFF    0x0CU        /* final result */
+#define STATUS_OFF    0x10U        /* done word */
+#define FAIL_OFF      0x14U        /* failing checks */
+#define EXPECTED_OFF  0x18U        /* expected final result */
+#define DIAG_OFF      0x20U        /* diagnostic/result words */
 #define STATUS_DONE   0xCAFECAFEU
+#define DIAG_WORDS    3U
 #define POLL_TIMEOUT  2000000U
 
 int main(void)
 {
-    uint32_t i, poll, status, result;
+    uint32_t i, poll, status, result, expected, fail_count;
 
-    xil_printf("\r\n=== Run GCC-compiled program on RV32I core ===\r\n");
-    xil_printf("Image : %s\r\n", RV32I_IMAGE_TAG);
+    xil_printf("\r\n=== Run GCC-compiled RV32IM program ===\r\n");
+    xil_printf("Image : %s\r\n", RV32IM_IMAGE_TAG);
     xil_printf("Words : %u\r\n", RISCV_CODE_WORD_COUNT);
 
     /* 1. hold core in reset */
@@ -74,8 +78,25 @@ int main(void)
 
     /* 6. read the result the core wrote into data BRAM */
     result = Xil_In32(DMEM_BASE + RESULT_OFF);
+    expected = Xil_In32(DMEM_BASE + EXPECTED_OFF);
+    fail_count = Xil_In32(DMEM_BASE + FAIL_OFF);
+
     xil_printf("DONE after %u polls.\r\n", poll);
-    xil_printf("Result from data BRAM = %u (0x%08x)\r\n", result, result);
+    xil_printf("Result = 0x%08x expected=0x%08x fail_count=%u\r\n",
+               result, expected, fail_count);
+
+    for (i = 0U; i < DIAG_WORDS; ++i) {
+        uint32_t value = Xil_In32(DMEM_BASE + DIAG_OFF + (i * 4U));
+        xil_printf("DMEM[0x%02x] = %u (0x%08x)\r\n",
+                   DIAG_OFF + (i * 4U), value, value);
+    }
+
+    if ((result != expected) || (fail_count != 0U)) {
+        xil_printf("GCC-loaded RISC-V program FAIL\r\n");
+        return -1;
+    }
+
+    xil_printf("GCC-loaded RISC-V program PASS\r\n");
 
     return 0;
 }

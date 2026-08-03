@@ -6,6 +6,8 @@
 module riscv_zynq_wrapper #(
     parameter integer ADDR_WIDTH = 10,
     parameter logic [31:0] RESET_PC = 32'h0000_0000,
+    parameter logic [31:0] AXI_PERIPH_BASE = 32'h1000_0000,
+    parameter logic [31:0] AXI_PERIPH_MASK = 32'hF000_0000,
     parameter integer NUM_EXT_INTERRUPTS = 32
 ) (
     input  logic        clk,
@@ -49,7 +51,28 @@ module riscv_zynq_wrapper #(
     output logic [3:0]  bram_dmem_we,
     output logic [31:0] bram_dmem_addr,
     output logic [31:0] bram_dmem_din,
-    input  logic [31:0] bram_dmem_dout
+    input  logic [31:0] bram_dmem_dout,
+
+    // AXI4-Lite Master Interface - data-side peripherals
+    output logic [31:0] m_axi_periph_awaddr,
+    output logic [2:0]  m_axi_periph_awprot,
+    output logic        m_axi_periph_awvalid,
+    input  logic        m_axi_periph_awready,
+    output logic [31:0] m_axi_periph_wdata,
+    output logic [3:0]  m_axi_periph_wstrb,
+    output logic        m_axi_periph_wvalid,
+    input  logic        m_axi_periph_wready,
+    input  logic [1:0]  m_axi_periph_bresp,
+    input  logic        m_axi_periph_bvalid,
+    output logic        m_axi_periph_bready,
+    output logic [31:0] m_axi_periph_araddr,
+    output logic [2:0]  m_axi_periph_arprot,
+    output logic        m_axi_periph_arvalid,
+    input  logic        m_axi_periph_arready,
+    input  logic [31:0] m_axi_periph_rdata,
+    input  logic [1:0]  m_axi_periph_rresp,
+    input  logic        m_axi_periph_rvalid,
+    output logic        m_axi_periph_rready
 );
 
     logic        cpu_reset_ext;
@@ -70,6 +93,12 @@ module riscv_zynq_wrapper #(
     logic [31:0] dmem_read_data;
     logic [31:0] bram_imem_byte_addr;
     logic [31:0] bram_dmem_byte_addr;
+    logic        dmem_sel_axi;
+    logic        dmem_sel_bram;
+    logic        bram_dmem_ready;
+    logic [31:0] bram_dmem_read_data;
+    logic        axi_dmem_ready;
+    logic [31:0] axi_dmem_read_data;
 
     // BRAM has a registered (1-cycle) read output. The core expects imem_instr /
     // dmem_read_data to be valid in the same cycle that *_ready is asserted, for the
@@ -87,7 +116,11 @@ module riscv_zynq_wrapper #(
     assign cpu_reset   = !aresetn || cpu_reset_ext;
     assign cpu_running = !cpu_reset;
 
-    assign dmem_acc = dmem_read_en | dmem_write_en;
+    assign dmem_acc      = dmem_read_en | dmem_write_en;
+    assign dmem_sel_axi  = dmem_acc &&
+                           ((dmem_addr & AXI_PERIPH_MASK) ==
+                            (AXI_PERIPH_BASE & AXI_PERIPH_MASK));
+    assign dmem_sel_bram = dmem_acc && !dmem_sel_axi;
 
     always_ff @(posedge clk) begin
         if (cpu_reset) begin
@@ -99,14 +132,16 @@ module riscv_zynq_wrapper #(
             imem_addr_q <= imem_addr;
             imem_req_q  <= imem_req;
             dmem_addr_q <= dmem_addr;
-            dmem_acc_q  <= dmem_acc;
+            dmem_acc_q  <= dmem_sel_bram;
         end
     end
 
     assign imem_ready     = imem_req_q && (imem_addr_q == imem_addr);
     assign imem_instr     = bram_imem_dout;
-    assign dmem_ready     = dmem_acc_q && (dmem_addr_q == dmem_addr);
-    assign dmem_read_data = bram_dmem_dout;
+    assign bram_dmem_ready = dmem_acc_q && (dmem_addr_q == dmem_addr);
+    assign bram_dmem_read_data = bram_dmem_dout;
+    assign dmem_ready     = dmem_sel_axi ? axi_dmem_ready : bram_dmem_ready;
+    assign dmem_read_data = dmem_sel_axi ? axi_dmem_read_data : bram_dmem_read_data;
     assign bram_imem_byte_addr = {
         {(32-(ADDR_WIDTH+2)){1'b0}},
         imem_addr[ADDR_WIDTH+1:2],
@@ -148,6 +183,40 @@ module riscv_zynq_wrapper #(
         .cpu_running   (cpu_running)
     );
 
+    riscv_axi_lite_master #(
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32)
+    ) dmem_axi_inst (
+        .clk          (clk),
+        .reset        (cpu_reset),
+        .req_read     (dmem_sel_axi && dmem_read_en),
+        .req_write    (dmem_sel_axi && dmem_write_en),
+        .req_addr     (dmem_addr),
+        .req_wdata    (dmem_write_data),
+        .req_wstrb    (dmem_wstrb),
+        .req_ready    (axi_dmem_ready),
+        .req_rdata    (axi_dmem_read_data),
+        .m_axi_awaddr (m_axi_periph_awaddr),
+        .m_axi_awprot (m_axi_periph_awprot),
+        .m_axi_awvalid(m_axi_periph_awvalid),
+        .m_axi_awready(m_axi_periph_awready),
+        .m_axi_wdata  (m_axi_periph_wdata),
+        .m_axi_wstrb  (m_axi_periph_wstrb),
+        .m_axi_wvalid (m_axi_periph_wvalid),
+        .m_axi_wready (m_axi_periph_wready),
+        .m_axi_bresp  (m_axi_periph_bresp),
+        .m_axi_bvalid (m_axi_periph_bvalid),
+        .m_axi_bready (m_axi_periph_bready),
+        .m_axi_araddr (m_axi_periph_araddr),
+        .m_axi_arprot (m_axi_periph_arprot),
+        .m_axi_arvalid(m_axi_periph_arvalid),
+        .m_axi_arready(m_axi_periph_arready),
+        .m_axi_rdata  (m_axi_periph_rdata),
+        .m_axi_rresp  (m_axi_periph_rresp),
+        .m_axi_rvalid (m_axi_periph_rvalid),
+        .m_axi_rready (m_axi_periph_rready)
+    );
+
     // RISC-V core
     riscv_core #(
         .RESET_PC(RESET_PC),
@@ -174,10 +243,12 @@ module riscv_zynq_wrapper #(
         .dmem_read_data  (dmem_read_data)
     );
 
-    // Instruction BRAM: read-only, driven directly from core
+    // Keep BRAM ports enabled while the CPU is running. The core still uses
+    // imem_req/dmem_sel_bram for ready/write qualification, but BRAM EN no
+    // longer sits on the critical core-control path into RAMB ENBWREN.
     assign bram_imem_clk  = clk;
     assign bram_imem_rst  = cpu_reset;
-    assign bram_imem_en   = imem_req;
+    assign bram_imem_en   = cpu_running;
     assign bram_imem_we   = 4'b0000;
     assign bram_imem_addr = bram_imem_byte_addr;
     assign bram_imem_din  = 32'b0;
@@ -185,8 +256,8 @@ module riscv_zynq_wrapper #(
     // Data BRAM: read/write, driven directly from core
     assign bram_dmem_clk  = clk;
     assign bram_dmem_rst  = cpu_reset;
-    assign bram_dmem_en   = dmem_read_en | dmem_write_en;
-    assign bram_dmem_we   = dmem_write_en ? dmem_wstrb : 4'b0000;
+    assign bram_dmem_en   = cpu_running;
+    assign bram_dmem_we   = (dmem_sel_bram && dmem_write_en) ? dmem_wstrb : 4'b0000;
     assign bram_dmem_addr = bram_dmem_byte_addr;
     assign bram_dmem_din  = dmem_write_data;
 
