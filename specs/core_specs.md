@@ -1,18 +1,18 @@
-# Core1 RV32IM Processor Specification
+# RV32IM Processor Specification
 
 ## Summary
 
 | Item | Specification |
 | --- | --- |
-| Core name | Core1 |
-| ISA | RISC-V RV32IM |
+| Core module | `riscv_core` |
+| ISA | RISC-V RV32IM + Zicsr |
 | XLEN | 32-bit |
 | Implementation language | SystemVerilog |
-| Target platform | FPGA / Zynq BRAM-based system |
+| Target platform | Generic FPGA; reference Zynq-7000 BRAM integration included |
 | Pipeline | 5-stage, in-order |
 | Memory architecture | Separate instruction and data BRAM interfaces |
 | Privilege support | Machine-mode CSR/trap subset |
-| Interrupts | Machine external interrupt only |
+| Interrupts | Parameterized machine external-interrupt vector |
 
 ## ISA Support
 
@@ -69,6 +69,7 @@
 | `TRAP_ACCESS_FAULTS` | `1'b0` | Enables data access-fault traps |
 | `DMEM_BASE` | `32'h80000000` | Start of valid data memory range |
 | `DMEM_LIMIT` | `32'h80020000` | End of valid data memory range, exclusive |
+| `NUM_EXT_INTERRUPTS` | `32` | Number of external-interrupt inputs; supported range is 1-32 |
 
 ## Core Interface
 
@@ -76,11 +77,13 @@
 | --- | --- | ---: | --- |
 | `clk` | Input | 1 | Core clock |
 | `reset` | Input | 1 | Core reset |
-| `external_irq` | Input | 1 | Level-sensitive machine external interrupt request |
+| `global_interrupts` | Input | `NUM_EXT_INTERRUPTS` | Level-sensitive external-interrupt vector; default width is 32 |
 | `imem_req` | Output | 1 | Instruction fetch request |
 | `imem_addr` | Output | 32 | Instruction byte address |
 | `imem_ready` | Input | 1 | Instruction data valid / fetch accepted |
 | `imem_instr` | Input | 32 | Fetched instruction |
+| `imem_resp_pc` | Input | 32 | PC associated with the returned instruction |
+| `imem_resp_accept` | Output | 1 | Indicates that a returned instruction response was consumed or discarded |
 | `dmem_addr` | Output | 32 | Data byte address |
 | `dmem_write_data` | Output | 32 | Store write data |
 | `dmem_wstrb` | Output | 4 | Store byte enables |
@@ -100,7 +103,9 @@
 | `mepc` | `0x341` | Trap return PC; bits `[1:0]` forced to zero on writes |
 | `mcause` | `0x342` | Trap cause |
 | `mtval` | `0x343` | Trap value |
-| `mip` | `0x344` | Read-only `MEIP` bit 11 mirrors `external_irq` |
+| `mip` | `0x344` | Read-only `MEIP` bit 11 reflects whether any external interrupt is pending |
+| `meimask` | `0x7c0` | Custom writable mask for the external-interrupt vector |
+| `meipend` | `0xfc0` | Custom read-only pending vector driven by `global_interrupts` |
 
 | CSR rule | Behavior |
 | --- | --- |
@@ -131,7 +136,7 @@
 | Previous privilege | `mstatus.MPP <= 2'b11` |
 | Trap target | Aligned `mtvec` base |
 | `MRET` target | `mepc` |
-| `MRET` status restore | `MIE <= MPIE`, `MPIE <= 1`, `MPP <= 2'b00` |
+| `MRET` status restore | `MIE <= MPIE`, `MPIE <= 0`, `MPP <= 2'b00` |
 
 ## Zynq Wrapper
 
@@ -142,6 +147,15 @@
 | Data BRAM | CPU read/write |
 | BRAM latency handling | `imem_ready` and `dmem_ready` assert after address is stable for one clock |
 | AXI-Lite control module | `axi_lite_control` |
+| AXI4-Lite peripheral master | `riscv_axi_lite_master`, selected by `AXI_PERIPH_BASE`/`AXI_PERIPH_MASK` |
+| External interrupt input | `global_interrupts[NUM_EXT_INTERRUPTS-1:0]` |
+
+The wrapper uses the default parameters `ADDR_WIDTH = 10`,
+`AXI_PERIPH_BASE = 32'h1000_0000`, and `AXI_PERIPH_MASK = 32'hF000_0000`.
+Data accesses matching the AXI peripheral region are issued through
+`M_AXI_PERIPH`; other data accesses use the native data BRAM. Instruction and
+data BRAM addresses are byte addresses with the low two bits cleared and are
+limited to the configured BRAM address width.
 
 ## AXI-Lite Control Registers
 
@@ -149,6 +163,8 @@
 | ---: | --- | --- | --- |
 | `0x0` | Control | RW | Bit 0 holds CPU in reset when set |
 | `0x4` | Status | RO | Bit 0 indicates CPU running |
+
+The AXI-Lite control interface is a 32-bit slave with 4-bit word addresses.
 
 ## Known Limits
 
