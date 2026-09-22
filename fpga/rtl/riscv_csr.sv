@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_csr.sv  -  machine-mode CSR file + trap state
 //   Holds mstatus, mie, mtvec, mscratch, mepc, mcause, mtval. Combinational read;

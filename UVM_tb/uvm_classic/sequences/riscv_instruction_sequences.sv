@@ -1,3 +1,8 @@
+// uvm_classic/sequences/riscv_instruction_sequences.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 // Memory-file sequence that reads the entire memory file and sends each instruction as a transaction
 // This demonstrates proper UVM sequence-to-driver communication
 class riscv_memory_file_sequence extends uvm_sequence#(riscv_instruction_transaction);

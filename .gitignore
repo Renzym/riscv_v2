@@ -52,6 +52,14 @@ UVM_tb/spike_lockstep/sw/*.bin
 # ---- tb/ Icarus Verilog generated outputs (source kept: *.sv,*.hex,run_sim.*) ----
 tb/riscv_sim
 tb/riscv_sim_check
+tb/*_sim
+tb/axi_compile_check
+
+# ---- Local reference downloads and generated upstream documentation ----
+/riscv-core-dv-uvm-main/
+/riscv-core-dv-uvm-main.zip
+/riscv-dv-7e54b678ab7499040336255550cdbd99ae887431.zip
+/UVM_tb/RISC-V/riscv-dv/docs/build/
 
 # ---- Verilator (future regression flow) ----
 obj_dir/

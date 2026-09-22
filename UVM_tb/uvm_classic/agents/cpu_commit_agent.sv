@@ -1,3 +1,8 @@
+// uvm_classic/agents/cpu_commit_agent.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 // Passive-only agent for monitoring processor commit stage
 // No driver or sequencer - stimulus comes from pre-loaded programs
 class cpu_commit_agent extends uvm_agent;

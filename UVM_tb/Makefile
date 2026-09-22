@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Modified by Renzym Private limited in 2026.
+
 # Makefile for the AMD-DV-Sprint project
 
 # --- Phony targets (don't represent files) ---

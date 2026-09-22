@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+//
+// Modified by Renzym Private limited in 2026.
+
 class riscv_dut_config extends uvm_object;
     `uvm_object_utils(riscv_dut_config)
 

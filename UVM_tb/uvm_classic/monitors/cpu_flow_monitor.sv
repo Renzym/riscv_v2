@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+//
+// Modified by Renzym Private limited in 2026.
+
 class cpu_flow_monitor extends uvm_monitor;
 
     `uvm_component_utils(cpu_flow_monitor)

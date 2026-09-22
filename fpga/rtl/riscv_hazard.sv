@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_hazard.sv  -  pipeline control: operand forwarding + load-use stalls
 //   Pure combinational. Precomputes forwarding selects for the instruction in

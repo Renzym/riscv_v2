@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // riscv_zynq_bridge.v
 // Plain Verilog-2001 wrapper to allow SystemVerilog module in Vivado Block Design
 

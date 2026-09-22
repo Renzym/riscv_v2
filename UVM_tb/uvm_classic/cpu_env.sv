@@ -1,3 +1,8 @@
+// uvm_classic/env/cpu_env.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 class cpu_env extends uvm_env;
 
     `uvm_component_utils(cpu_env)

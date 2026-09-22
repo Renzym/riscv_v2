@@ -1,3 +1,8 @@
+// uvm_classic/agents/cpu_flow_agent.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 class cpu_flow_agent extends uvm_agent;
     `uvm_component_utils(cpu_flow_agent)
 

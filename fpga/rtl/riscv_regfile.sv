@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_regfile.sv  -  32x32 integer register file
 //   * x0 is hard-wired to 0

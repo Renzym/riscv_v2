@@ -1,6 +1,7 @@
 # RV32IM 5-Stage Pipelined RISC-V Core
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+
 A compact, in-order **RV32IM + Zicsr** processor written in SystemVerilog,
 designed for FPGA integration with on-chip instruction and data memory. The
 repository includes a reference Vivado integration for a Xilinx Zynq-7000

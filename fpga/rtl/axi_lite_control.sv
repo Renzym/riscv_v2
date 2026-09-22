@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 `ifndef AXI_LITE_CONTROL_SV
 `define AXI_LITE_CONTROL_SV
 

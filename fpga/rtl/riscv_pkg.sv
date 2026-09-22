@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_pkg.sv
 // Shared constants for the RV32IM core: opcodes, ALU ops, writeback selects,

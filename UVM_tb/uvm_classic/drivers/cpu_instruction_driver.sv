@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+//
+// Modified by Renzym Private limited in 2026.
+
 // uvm_classic/drivers/cpu_instruction_driver.sv
 //
 // Robust driver with precise timing to ensure correct instruction sampling
