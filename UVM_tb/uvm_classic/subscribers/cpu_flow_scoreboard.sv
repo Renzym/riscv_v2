@@ -1,3 +1,8 @@
+// uvm_classic/subscribers/cpu_flow_scoreboard.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 // Compares actual program flow transactions from the monitor against
 // predicted transactions from the flow predictor.
 class cpu_flow_scoreboard extends uvm_scoreboard;

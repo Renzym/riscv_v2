@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# scripts/mem_convert.py
+#
+# Copyright (c) 2025 Igor Bogdanov
+# All rights reserved.
 
 """
 This script converts all generated ELF files into the Verilog .mem format

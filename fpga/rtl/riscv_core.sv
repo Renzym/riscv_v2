@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_core.sv  -  top level of the 5-stage RV32IM core
 //

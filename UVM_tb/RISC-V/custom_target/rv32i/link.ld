@@ -44,4 +44,4 @@ SECTIONS
   } > ram
 
   _end = .;
-} 
+}

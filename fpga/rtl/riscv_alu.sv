@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_alu.sv  -  combinational arithmetic/logic unit (EX stage)
 // ============================================================================

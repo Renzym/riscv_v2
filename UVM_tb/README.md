@@ -1,276 +1,281 @@
 # RV32IM Core Verification
 
-This directory contains the Linux verification flow for the RV32IM core. The
-current flow uses Vivado xsim for RTL/UVM simulation, riscv-dv for program
-generation, Spike as the golden ISA model, and a RISC-V GCC toolchain for
-building generated assembly.
+This directory contains the Linux verification flow for the RV32IM core. It
+uses:
 
-This flow is Linux-only. Do not expect the UVM/riscv-dv flow to build or run on
-native Windows PowerShell or CMD. Windows can be used for editing, but the
-verification commands below should be run on Linux, WSL with the required tools,
-or the project machine configured for CI.
+- AMD/Xilinx Vivado xsim for RTL and UVM simulation
+- riscv-dv for assembly-program generation
+- a bare-metal RISC-V GCC toolchain for compilation
+- Spike as the reference instruction-set simulator
 
-## Directory Map
+The flow is intended for Linux. Native Windows PowerShell and CMD
+are not supported by this UVM flow.
+
+## Directory Layout
 
 ```text
 UVM_tb/
-  Makefile                         Main verification entry points
-  run_verification.sh              One-command local regression wrapper
-  .env                             Local tool/path defaults
-  uvm_classic/                     UVM testbench, agents, monitors, predictors, scoreboards
-  tb_mem/                          Instruction/data memory models for simulation
-  scripts/                         Generation, compile, Spike, xsim, and compare helpers
-  RISC-V/riscv-dv/                 Vendored riscv-dv generator and compare scripts
-  RISC-V/custom_target/rv32i/      Core-specific riscv-dv target and test list
+  Makefile                         Verification targets
+  run_verification.sh              One-command regression wrapper
+  .env                             Local tool and test configuration
+  uvm_classic/                     UVM environment and tests
+  tb_mem/                          Simulation memory models and directed images
+  scripts/                         Generation, build, simulation, and comparison tools
+  RISC-V/riscv-dv/                 Vendored riscv-dv generator
+  RISC-V/custom_target/rv32i/      Core-specific riscv-dv configuration
 ```
 
-## What Is Checked
+The custom-target directory keeps the legacy name `rv32i`, but its settings
+enable both RV32I and RV32M instructions.
 
-The important regression path is Spike lockstep comparison:
+## Verification Flow
 
-1. `riscv-dv` generates an RV32IM assembly program for one or more seeds.
-2. The generated assembly is compiled with the RISC-V GCC toolchain.
-3. Spike runs the exact compiled ELF and writes a commit log.
+The main regression performs these steps:
+
+1. riscv-dv generates an RV32IM assembly program for each seed.
+2. RISC-V GCC compiles the generated program into an ELF file.
+3. Spike runs the ELF and produces a reference commit log.
 4. Vivado xsim runs the same program on the RTL/UVM testbench.
-5. The UVM scoreboards compare program flow and architectural commits against
-   the Spike reference log.
+5. The UVM scoreboards compare RTL program flow and architectural commits with
+   the Spike results.
 
-The UVM environment is in `uvm_classic/`. The active test is `riscv_base_test`,
-which loads a generated memory image and Spike log through plusargs.
+The main UVM test is `riscv_base_test`. It receives the generated memory image
+and Spike log through simulation plusargs.
 
 ## Required Tools
 
-Install these on Linux before running the flow:
+Install these tools before running verification:
 
-- AMD/Xilinx Vivado with `xvlog`, `xelab`, and `xsim` available.
-- Python 3.
-- RISC-V GCC toolchain with `riscv-none-elf-gcc` and `riscv-none-elf-objcopy`.
-- Spike built with commit-log support.
-- Standard Linux build tools: `make`, `bash`, `find`, `tee`.
+- Vivado with `xvlog`, `xelab`, and `xsim`
+- Python 3 and pip
+- a bare-metal RISC-V GCC toolchain containing `gcc` and `objcopy`
+- Spike built with commit-log support
+- GNU Make and common Linux utilities such as Bash, `find`, and `tee`
 
-The checked-in `.env` uses these defaults:
+Install the Linux packages needed to build Spike and run the helper scripts:
 
 ```bash
-VIVADO_HOME=/tools/Xilinx/Vivado/2022.1
-XILINX_VIVADO=/tools/Xilinx/Vivado/2022.1
-SPIKE_HOME=/home/rafi/tools/spike
-SPIKE_CMD=/home/rafi/tools/spike/bin/spike
-RISCV_PREFIX=riscv-none-elf
+sudo apt update
+sudo apt install -y git make gcc g++ autoconf automake autotools-dev curl \
+  python3 python3-pip python3-venv libmpc-dev libmpfr-dev libgmp-dev gawk \
+  build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev \
+  libexpat-dev
+```
+
+Install the Python dependencies from the repository root:
+
+```bash
+python3 -m pip install -r UVM_tb/RISC-V/riscv-dv/requirements.txt
+```
+
+Install Vivado and a bare-metal RISC-V GCC toolchain using their respective
+vendor instructions. Their installation directories may be anywhere on the
+machine; the next section explains how to configure them.
+
+To build Spike with commit-log support, replace `[SPIKE_INSTALL_DIR]` with the
+directory where Spike should be installed:
+
+```bash
+git clone https://github.com/riscv-software-src/riscv-isa-sim.git spike-src
+cd spike-src
+mkdir build
+cd build
+../configure --prefix="[SPIKE_INSTALL_DIR]" --enable-commitlog
+make -j"$(nproc)"
+make install
+```
+
+## Configure Tool Paths
+
+Before running any verification test, configure both `run_verification.sh` and
+`.env`. Replace every bracketed placeholder, including the square brackets,
+with the path or tool prefix for your machine.
+
+The placeholders mean:
+
+- `[VIVADO_INSTALL_DIR]`: directory containing Vivado's `settings64.sh`
+- `[RISCV_TOOLCHAIN_BIN]`: directory containing the RISC-V `gcc` and `objcopy`
+- `[SPIKE_INSTALL_DIR]`: directory containing `bin/spike`
+- `[RISCV_TOOLCHAIN_PREFIX]`: executable prefix without `-gcc`
+
+For example, if the compiler executable is `riscv-none-elf-gcc`, use
+`RISCV_PREFIX=riscv-none-elf`. If it is `riscv64-unknown-elf-gcc`, use
+`RISCV_PREFIX=riscv64-unknown-elf`.
+
+### 1. Configure `run_verification.sh`
+
+Replace its environment setup lines with your paths:
+
+```bash
+echo "--- Setting up environment ---"
+source "[VIVADO_INSTALL_DIR]/settings64.sh"
+export PATH="[RISCV_TOOLCHAIN_BIN]:$PATH"
+export PATH="[SPIKE_INSTALL_DIR]/bin:$PATH"
+```
+
+### 2. Configure `.env`
+
+Update these values and keep the test configuration below them:
+
+```bash
+VIVADO_HOME=[VIVADO_INSTALL_DIR]
+XILINX_VIVADO=[VIVADO_INSTALL_DIR]
+SPIKE_HOME=[SPIKE_INSTALL_DIR]
+SPIKE_CMD=[SPIKE_INSTALL_DIR]/bin/spike
+RISCV_PREFIX=[RISCV_TOOLCHAIN_PREFIX]
+
+DEFAULT_TEST_NAME=riscv_arithmetic_basic_test
 TARGET_ISA=rv32im
 TARGET_ARCH=rv32im_zicsr
 TARGET_ABI=ilp32
 ```
 
-The riscv-dv custom target package is still named `rv32i` for compatibility
-with `RISC-V/custom_target/rv32i/`; that target's settings enable both `RV32I`
-and `RV32M`.
+Keep the paths in `.env` and `run_verification.sh` consistent. The Makefile
+loads `.env`, while the wrapper script loads Vivado and extends `PATH` itself.
 
-Edit `UVM_tb/.env` for your machine, or export the same variables in your shell.
-For example:
+Do not commit personal installation paths when preparing a contribution.
 
-```bash
-cd UVM_tb
-source /tools/Xilinx/Vivado/2022.1/settings64.sh
-export PATH=$HOME/tools/xpack-riscv-none-elf-gcc-15.2.0-1/bin:$PATH
-export PATH=$HOME/tools/spike/bin:$PATH
-export SPIKE_CMD=$HOME/tools/spike/bin/spike
-export RISCV_PREFIX=riscv-none-elf
-```
+## Verify the Configuration
 
-Check the tools before starting:
-
-```bash
-which xvlog xelab xsim
-which riscv-none-elf-gcc riscv-none-elf-objcopy
-which spike
-```
-
-## Install And Run
-
-Run these commands on Linux. Adjust the Vivado version/path if your installation
-is different.
-
-```bash
-sudo apt update
-sudo apt install -y git make gcc g++ autoconf automake autotools-dev curl \
-  python3 python3-pip libmpc-dev libmpfr-dev libgmp-dev gawk build-essential \
-  bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
-```
-
-Install the xPack RISC-V GCC toolchain under `~/tools` so the path matches this
-project:
-
-```bash
-mkdir -p $HOME/tools
-cd $HOME/tools
-# Download and extract xpack-riscv-none-elf-gcc-15.2.0-1 for Linux x64.
-# The extracted folder should be:
-#   $HOME/tools/xpack-riscv-none-elf-gcc-15.2.0-1
-export PATH=$HOME/tools/xpack-riscv-none-elf-gcc-15.2.0-1/bin:$PATH
-```
-
-Build and install Spike with commit-log support:
-
-```bash
-cd $HOME/tools
-git clone https://github.com/riscv-software-src/riscv-isa-sim.git spike-src
-cd spike-src
-mkdir -p build
-cd build
-../configure --prefix=$HOME/tools/spike --enable-commitlog
-make -j$(nproc)
-make install
-export PATH=$HOME/tools/spike/bin:$PATH
-```
-
-Set the project paths before running verification:
-
-```bash
-source /tools/Xilinx/Vivado/2022.1/settings64.sh
-export PATH=$HOME/tools/xpack-riscv-none-elf-gcc-15.2.0-1/bin:$PATH
-export PATH=$HOME/tools/spike/bin:$PATH
-```
-
-You can put the same exports in `UVM_tb/.env` or in your shell startup file if
-you do not want to type them every time.
-
-Check that the tools are visible:
-
-```bash
-which xvlog xelab xsim
-which riscv-none-elf-gcc riscv-none-elf-objcopy
-which spike
-```
-
-Run the verification wrapper from `UVM_tb/`:
+Open a Linux/WSL Bash terminal and run the following commands from `UVM_tb/`.
+Replace `[RISCV_TOOLCHAIN_BIN]` with the same value used above.
 
 ```bash
 cd UVM_tb
+
+set -a
+source ./.env
+set +a
+
+source "$VIVADO_HOME/settings64.sh"
+export PATH="[RISCV_TOOLCHAIN_BIN]:$SPIKE_HOME/bin:$PATH"
+
+command -v xvlog
+command -v xelab
+command -v xsim
+command -v "${RISCV_PREFIX}-gcc"
+command -v "${RISCV_PREFIX}-objcopy"
+test -x "$SPIKE_CMD"
+"$SPIKE_CMD" --help >/dev/null
+```
+
+Every command must succeed before running a regression. The `command -v`
+checks must print executable paths, and the Spike help check must return without
+an error. Repeat this environment setup when starting a new terminal.
+
+## Run Verification
+
+Run the default arithmetic regression from `UVM_tb/`:
+
+```bash
 bash run_verification.sh
 ```
 
-To run a specific test, pass the test name as the first argument:
+Pass a test name to run a specific generated test:
+
+```bash
+bash run_verification.sh riscv_rand_instr_test
+```
+
+The enabled generated tests can be run as follows:
 
 ```bash
 bash run_verification.sh riscv_arithmetic_basic_test
+bash run_verification.sh riscv_rand_instr_test
+bash run_verification.sh riscv_jump_stress_test
+bash run_verification.sh riscv_loop_test
+bash run_verification.sh riscv_rand_jump_test
+bash run_verification.sh riscv_mmu_stress_test
+bash run_verification.sh riscv_no_fence_test
+bash run_verification.sh riscv_illegal_instr_test
+bash run_verification.sh riscv_ebreak_test
+bash run_verification.sh riscv_ebreak_debug_mode_test
+bash run_verification.sh riscv_full_interrupt_test
 ```
-Run each verification test like this:
+
+The wrapper uses one random seed. To run the Makefile target directly with more
+seeds:
 
 ```bash
-./run_verification.sh riscv_arithmetic_basic_test
-./run_verification.sh riscv_rand_instr_test
-./run_verification.sh riscv_jump_stress_test
-./run_verification.sh riscv_loop_test
-./run_verification.sh riscv_rand_jump_test
-./run_verification.sh riscv_mmu_stress_test
-./run_verification.sh riscv_no_fence_test
-./run_verification.sh riscv_illegal_instr_test
-./run_verification.sh riscv_ebreak_test
-./run_verification.sh riscv_ebreak_debug_mode_test
-./run_verification.sh riscv_full_interrupt_test
+make uvm_regress TEST=riscv_rand_instr_test NUM_SEEDS=10
 ```
 
-`riscv_csr_test` is listed in the riscv-dv test list but is currently disabled
-with `iterations: 0`, so do not use it as a normal regression test until that
-entry is enabled.
+## Available Generated Tests
 
-`riscv_unaligned_load_store_test` is also disabled. This core traps misaligned
-loads/stores instead of completing them in hardware, and the generated bare-metal
-test does not install a trap handler.
+The authoritative list is
+`RISC-V/custom_target/rv32i/testlist.yaml`.
 
-## Available Verification Tests
+| Test | Purpose | Status |
+| --- | --- | --- |
+| `riscv_arithmetic_basic_test` | RV32I arithmetic without load/store/branch instructions | Enabled |
+| `riscv_rand_instr_test` | Random instruction, load/store, and jump stress | Enabled |
+| `riscv_jump_stress_test` | Back-to-back jump stress | Enabled |
+| `riscv_loop_test` | Loop instruction generation | Enabled |
+| `riscv_rand_jump_test` | Random jump generation | Enabled |
+| `riscv_mmu_stress_test` | Load/store memory stress | Enabled |
+| `riscv_no_fence_test` | Random program with fence disabled | Enabled |
+| `riscv_illegal_instr_test` | Illegal-instruction exception generation | Enabled |
+| `riscv_ebreak_test` | EBREAK handling | Enabled |
+| `riscv_ebreak_debug_mode_test` | EBREAK with the debug sequence enabled | Enabled |
+| `riscv_full_interrupt_test` | Generated interrupt-sequence test | Enabled |
+| `riscv_csr_test` | CSR test-list entry | Disabled (`iterations: 0`) |
+| `riscv_unaligned_load_store_test` | Unaligned load/store test | Disabled (`iterations: 0`) |
 
-The active test list is `RISC-V/custom_target/rv32i/testlist.yaml`.
+The CSR test is not part of the normal regression while its iteration count is
+zero. The unaligned-access test is disabled because this core traps misaligned
+loads and stores, while the generated bare-metal program does not install the
+required trap handler.
 
-| Test | Purpose |
-|------|---------|
-| `riscv_arithmetic_basic_test` | Arithmetic-focused RV32I test, no load/store/branch instructions. |
-| `riscv_rand_instr_test` | Random instruction stress with load/store and jump streams. |
-| `riscv_jump_stress_test` | Back-to-back jump stress. |
-| `riscv_loop_test` | Simple loop instruction test. |
-| `riscv_rand_jump_test` | Random jump test. |
-| `riscv_mmu_stress_test` | Load/store memory stress for the simple memory model. |
-| `riscv_no_fence_test` | Random program with fence disabled. |
-| `riscv_illegal_instr_test` | Illegal instruction exception sequence. |
-| `riscv_ebreak_test` | EBREAK instruction handling. |
-| `riscv_ebreak_debug_mode_test` | EBREAK with debug-mode sequence option. |
-| `riscv_full_interrupt_test` | Interrupt sequence entry in the generator list. |
-| `riscv_csr_test` | CSR test entry. Currently disabled with `iterations: 0`. |
-| `riscv_unaligned_load_store_test` | Disabled; this core does not support unaligned load/store completion. |
+## Directed UVM Tests
 
-Run any enabled test by passing its name to `run_verification.sh`.
+The directed tests use RTL-side stimulus and do not use the normal Spike
+lockstep comparison.
 
-## Directed External Interrupt UVM Test
-
-The external interrupt path is checked with a directed UVM test instead of the
-Spike lockstep scoreboard, because the interrupt assertion is an RTL-side event.
-
-Run it from `UVM_tb/`:
+Run the external-interrupt test:
 
 ```bash
 make uvm_external_irq
 ```
 
-This loads `tb_mem/external_irq_imem.mem`, asserts bit 0 of the ORCA-style
-external interrupt vector through the UVM interface, and checks:
+It loads `tb_mem/external_irq_imem.mem`, asserts external interrupt bit 0, and
+checks:
 
 - `mcause = 0x8000000b`
-- `mepc` is an aligned interrupted loop PC
-- ORCA `meipend[0]` reads as set while the interrupt input is high
+- `mepc` contains an aligned interrupted-loop PC
+- ORCA `meipend[0]` is set while the interrupt input is high
 - the handler executes once and returns with `MRET`
 
-## Directed RV32M UVM Test
-
-The M extension is checked with a directed UVM test that runs
-`tb_mem/m_extension_imem.mem` and observes writeback results for all RV32M
-multiply/divide operations and corner cases:
-
-- `MUL`, `MULH`, `MULHSU`, `MULHU`
-- `DIV`, `DIVU`, `REM`, `REMU`
-- divide-by-zero behavior
-- signed divide overflow behavior
-
-Run it from `UVM_tb/`:
+Run the RV32M directed test:
 
 ```bash
 make uvm_m_extension
 ```
 
-To run both newly added feature checks:
+It checks all eight RV32M multiply/divide operations, divide-by-zero behavior,
+and signed division overflow.
+
+Run both directed feature tests:
 
 ```bash
 make uvm_rv32im_features
 ```
 
-## Pass/Fail
+## Results and Troubleshooting
 
-A passing run ends with the Makefile command returning exit code 0. For the
-script wrapper, the final line is:
+A successful wrapper run ends with:
 
 ```text
 --- VERIFICATION PASSED ---
 ```
 
-For failed UVM regressions, inspect `logs/uvm_run.log` first, then check the
-generated `out_*/` directory for the program, memory image, and Spike log used
-by that run.
+If a run fails:
 
-## If You Do Not Have Linux Locally
+1. Confirm that all commands in **Verify the Configuration** succeed.
+2. Inspect `logs/uvm_run.log` for compilation, elaboration, simulation, or
+   scoreboard failures.
+3. Inspect the generated `out_*/` directory for the assembly, ELF, memory image,
+   RTL trace, and Spike log associated with the failing seed.
+4. Rerun with the same `logs/seeds.txt` file and `PRESERVE_SEEDS=1` when a
+   reproducible seed is needed.
 
-If you cannot run the Linux verification flow on your own machine, push your
-work to the GitHub repository `renzym/rv32i_core1` on the `PR_review` branch.
-Do not push directly to `main`.
-
-One safe sequence is:
-
-```bash
-git remote add origin https://github.com/renzym/rv32i_core1.git
-git checkout -B PR_review
-git add .
-git commit -m "Update RV32I verification changes"
-git push -u origin PR_review
-```
-
-The repository is expected to run the configured action automatically on pushes
-to `PR_review`. Check the action result in GitHub; it will report whether the
-verification passed or failed on the configured Linux machine.
+The wrapper returns a nonzero exit status when verification fails.

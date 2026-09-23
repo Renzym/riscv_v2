@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# scripts/merge_cov.py
+#
+# Copyright (c) 2025 Igor Bogdanov
+# All rights reserved.
 
 """Merge coverage databases and generate JSON report."""
 

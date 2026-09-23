@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 class riscv_external_irq_test extends uvm_test;
 
     `uvm_component_utils(riscv_external_irq_test)

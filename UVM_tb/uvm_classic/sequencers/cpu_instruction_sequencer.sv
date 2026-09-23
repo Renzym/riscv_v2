@@ -3,4 +3,4 @@
 // Copyright (c) 2025 Igor Bogdanov
 // All rights reserved.
 
-typedef uvm_sequencer#(riscv_instruction_transaction) cpu_instruction_sequencer; 
+typedef uvm_sequencer#(riscv_instruction_transaction) cpu_instruction_sequencer;

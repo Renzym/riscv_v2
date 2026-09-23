@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 `ifndef RISCV_ZYNQ_WRAPPER_SV
 `define RISCV_ZYNQ_WRAPPER_SV
 

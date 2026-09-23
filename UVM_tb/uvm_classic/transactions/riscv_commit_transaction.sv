@@ -1,3 +1,8 @@
+// uvm_classic/transactions/riscv_commit_transaction.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 class riscv_commit_transaction extends uvm_sequence_item;
 
     rand bit [31:0] pc;

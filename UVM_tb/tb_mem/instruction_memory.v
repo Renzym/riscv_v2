@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Author: Igor Bogdanov
+//
+// Modified by Renzym Private limited in 2026.
+
 // instruction_memory.v
 // Read-only memory for instructions, initialized via $readmemb
 

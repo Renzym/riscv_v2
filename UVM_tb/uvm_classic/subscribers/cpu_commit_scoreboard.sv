@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+//
+// Modified by Renzym Private limited in 2026.
+
 class cpu_commit_scoreboard extends uvm_scoreboard;
     `uvm_component_utils(cpu_commit_scoreboard)
 

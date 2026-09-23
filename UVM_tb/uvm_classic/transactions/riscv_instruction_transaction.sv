@@ -1,3 +1,8 @@
+// uvm_classic/transactions/riscv_instruction_transaction.sv
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+
 class riscv_instruction_transaction extends uvm_sequence_item;
 
     rand logic [31:0] pc_address;

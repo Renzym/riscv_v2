@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Modified by Renzym Private limited in 2026.
+
 """
 Copyright 2020 Google LLC
 Copyright 2020 PerfectVIPs Inc.

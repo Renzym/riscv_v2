@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Author: Igor Bogdanov
+//
+// Modified by Renzym Private limited in 2026.
+
 // data_memory.v
 // Behavioral memory model with byte-strobe support
 

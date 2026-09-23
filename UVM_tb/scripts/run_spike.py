@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2025 Igor Bogdanov
+# All rights reserved.
+#
+# Modified by Renzym Private limited in 2026.
+
 
 """
 This script runs the Spike instruction set simulator on pre-compiled

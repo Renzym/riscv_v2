@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2025 Igor Bogdanov
+// All rights reserved.
+//
+// Modified by Renzym Private limited in 2026.
+
 // cpu_top.sv
 // Adapted for the Core1_BRAM riscv_core (modular RTL, no caches, BRAM-only)
 // Synchronized shadow pipeline for instruction bits

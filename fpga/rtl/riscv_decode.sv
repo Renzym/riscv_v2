@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_decode.sv  -  instruction decoder (ID stage)
 //   Takes a 32-bit instruction and produces the control signals + immediate

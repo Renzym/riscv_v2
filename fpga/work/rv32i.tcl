@@ -22,20 +22,6 @@
 #
 # 2. The following source(s) files that were local or imported into the original project.
 #    (Please see the '$orig_proj_dir' and '$origin_dir' variable setting below at the start of the script)
-#
-#    "F:/AI_RV32I/RV32I/fpga/RV32I_FPGA/RV32I_FPGA.srcs/sources_1/imports/src/riscv_core.sv"
-#    "F:/AI_RV32I/RV32I/fpga/RV32I_FPGA/RV32I_FPGA.srcs/sources_1/imports/src/simple_dcache.sv"
-#    "F:/AI_RV32I/RV32I/fpga/RV32I_FPGA/RV32I_FPGA.srcs/sources_1/imports/src/simple_icache.sv"
-#    "F:/AI_RV32I/RV32I/fpga/RV32I_FPGA/RV32I_FPGA.srcs/utils_1/imports/synth_1/riscv_zynq_bridge.dcp"
-#
-# 3. The following remote source files that were added to the original project:-
-#
-#    "F:/AI_RV32I/RV32I/src/fpga/axi_lite_control.sv"
-#    "F:/AI_RV32I/RV32I/src/fpga/riscv_axi_lite_master.sv"
-#    "F:/AI_RV32I/RV32I/src/fpga/riscv_axi_ddr_backend.sv"
-#    "F:/AI_RV32I/RV32I/src/fpga/riscv_zynq_wrapper.sv"
-#    "F:/AI_RV32I/RV32I/src/fpga/riscv_zynq_bridge.v"
-#
 #*****************************************************************************************
 
 # Check file required for this script exists

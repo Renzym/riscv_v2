@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 Renzym Private limited
+
 // ============================================================================
 // riscv_lsu.sv  -  load/store data formatting (MEM stage), combinational
 //   * builds dmem_write_data + byte strobes for SB/SH/SW
