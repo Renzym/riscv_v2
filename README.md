@@ -11,9 +11,6 @@ use the same RTL with an appropriate wrapper. Verification infrastructure
 includes **Spike** reference comparisons, directed UVM tests, and standalone
 regressions.
 
-> A compact bare-metal design with separate instruction/data memories, no caches,
-> and a limited machine-mode trap and external-interrupt implementation.
-
 ---
 
 ## Block Design and Resources
